@@ -1,0 +1,5 @@
+name,usage,price,stock,branch,image_url,buy_link
+Paracetamol,"fever, headache",$5.00,10,Downtown,https://onlinefamilypharmacy.com/images/item/100452.jpg,#
+Ibuprofen,"fever, pain, inflammation",$6.00,3,Eastside,https://onlinefamilypharmacy.com/images/item/100489.jpg,#
+Loratadine,"allergies, cold",$8.50,15,Downtown,https://onlinefamilypharmacy.com/wp-content/uploads/2021/11/claritine.jpg,#
+Amoxicillin,infections,$15.00,0,Westside,https://onlinefamilypharmacy.com/wp-content/uploads/2022/03/Amoxicillin.jpg,#

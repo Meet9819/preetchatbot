@@ -1,0 +1,52 @@
+import streamlit as st
+import ollama
+
+# 1. THE DATABASE
+medicines_db = [
+    {"name": "Paracetamol", "usage": "fever, headache, body pain", "price": "$5.00"},
+    {"name": "Loratadine", "usage": "allergies, sneezing, runny nose", "price": "$8.50"},
+    {"name": "Ibuprofen", "usage": "inflammation, severe pain, fever", "price": "$6.00"},
+    {"name": "Omeprazole", "usage": "acid reflux, heartburn", "price": "$12.00"}
+]
+
+db_text = ""
+for med in medicines_db:
+    db_text += f"Product: {med['name']}, Treats: {med['usage']}, Price: {med['price']}\n"
+
+st.title("💊 Pharmacy Product Search")
+
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
+
+if prompt := st.chat_input("Search for a product..."):
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    with st.chat_message("user"):
+        st.markdown(prompt)
+
+    # --- THE SUPER-STRICT INSTRUCTION ---
+    # We use an 'Example' to show the AI exactly what we want.
+    system_instruction = (
+        "ACT AS A TERMINAL SEARCH ENGINE. "
+        "YOUR ONLY TASK: Match user keywords to the data below. "
+        "DO NOT USE FULL SENTENCES. DO NOT GIVE MEDICAL ADVICE. "
+        "EXAMPLE RESPONSE: 'Product: Name | Price: $0.00' "
+        f"\nDATA TO SEARCH:\n{db_text}"
+        "\nIf no match is found, say: 'No matching products in our database.'"
+    )
+    
+    with st.chat_message("assistant"):
+        # We put the system instruction FIRST every single time
+        full_context = [{"role": "system", "content": system_instruction}] + st.session_state.messages
+        
+        response = ollama.chat(model='llama3.2:1b', messages=full_context)
+        
+        reply = response['message']['content']
+        st.markdown(reply)
+        st.session_state.messages.append({"role": "assistant", "content": reply})
+
+st.divider()
+st.caption("Testing Mode: Using local medicine database.")

@@ -1,0 +1,50 @@
+import streamlit as st
+import ollama
+
+# --- 1. THE DATABASE (Add this so the AI has something to search) ---
+medicines_db = [
+    {"name": "Paracetamol", "usage": "fever, headache, body pain", "price": "$5.00"},
+    {"name": "Loratadine", "usage": "allergies, sneezing, runny nose", "price": "$8.50"},
+    {"name": "Ibuprofen", "usage": "inflammation, severe pain, fever", "price": "$6.00"},
+    {"name": "Omeprazole", "usage": "acid reflux, heartburn", "price": "$12.00"}
+]
+
+# This turns the list into a string for the AI to read
+db_text = ""
+for med in medicines_db:
+    db_text += f"Product: {med['name']}, Treats: {med['usage']}, Price: {med['price']}\n"
+
+st.title("Pharmacy Assistant")
+
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
+
+if prompt := st.chat_input("How can I help you?"):
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    with st.chat_message("user"):
+        st.markdown(prompt)
+
+    # --- 2. THE SYSTEM INSTRUCTION (This is the most important part) ---
+    # We tell the AI it IS allowed to use this specific data.
+    system_instruction = (
+        "You are a helpful assistant for Online Family Pharmacy. "
+        "Your ONLY job is to suggest medicines from the following list based on symptoms. "
+        "Do not give general medical advice. If a symptom matches, name the product and price. "
+        f"DATA LIST: \n{db_text}"
+    )
+    
+    with st.chat_message("assistant"):
+        full_context = [{"role": "system", "content": system_instruction}] + st.session_state.messages
+        response = ollama.chat(model='llama3.2:1b', messages=full_context)
+        
+        reply = response['message']['content']
+        st.markdown(reply)
+        st.session_state.messages.append({"role": "assistant", "content": reply})
+
+# Safety footer
+st.divider()
+st.caption("Note: This is a test bot using local data.")
