@@ -7,6 +7,7 @@ import urllib.parse
 st.set_page_config(page_title="Family Pharmacy AI", page_icon="💊", layout="wide")
 
 # 2. SECURE API SETUP
+# DO NOT put your API key here. It must stay in the Streamlit Secrets tab.
 if "GEMINI_API_KEY" in st.secrets:
     api_key = st.secrets["GEMINI_API_KEY"]
     genai.configure(api_key=api_key)
@@ -15,21 +16,22 @@ else:
     st.stop()
 
 # 3. ROBUST MODEL INITIALIZATION (Fixes 404 Errors)
+@st.cache_resource
 def get_working_model():
-    # Priority list of model names to try
+    # Try different model versions to ensure 404s are avoided
     model_names = ['gemini-1.5-flash', 'gemini-1.5-flash-latest', 'gemini-pro']
     for name in model_names:
         try:
             m = genai.GenerativeModel(
                 model_name=name,
-                system_instruction="You are a professional pharmacy assistant in Qatar. Be concise. Advise doctor visits for serious symptoms."
+                system_instruction="You are a professional pharmacy assistant in Qatar. Be concise. Advise doctor visits for serious symptoms. If products are in the context, suggest them."
             )
             # Test call to verify model availability
             m.generate_content("test", generation_config={"max_output_tokens": 1})
             return m
         except Exception:
             continue
-    return genai.GenerativeModel('gemini-1.5-flash') # Default fallback
+    return genai.GenerativeModel('gemini-1.5-flash')
 
 model = get_working_model()
 
@@ -41,7 +43,7 @@ def load_data():
     try:
         r = requests.get(API_URL, timeout=10)
         return r.json().get("data", [])
-    except:
+    except Exception:
         return []
 
 inventory = load_data()
@@ -53,7 +55,9 @@ def advanced_search(query, items):
     for item in items:
         name = str(item.get('item_name', '')).lower()
         blob = " ".join([str(v) for v in item.values()]).lower()
-        score = 20 if q in name else (5 if any(w in blob for w in q.split()) else 0)
+        score = 0
+        if q in name: score += 20
+        elif any(word in blob for word in q.split()): score += 5
         if score > 0: scored_matches.append((score, item))
     scored_matches.sort(key=lambda x: x[0], reverse=True)
     return [m[1] for m in scored_matches[:6]]
@@ -69,9 +73,11 @@ with st.sidebar:
 
 st.title("Family Pharmacy AI" if language == "English" else "صيدلية العائلة")
 
+# Initialize Session Message History
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
+# Display History
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
@@ -80,18 +86,21 @@ for msg in st.session_state.messages:
 prompt = st.chat_input("Ask about medicine..." if language == "English" else "اسأل عن الدواء...")
 
 if prompt:
+    # Add User Message to UI
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
+    # Search Inventory for Context
     results = advanced_search(prompt, inventory)
-    context = "Products: " + ", ".join([i['item_name'] for i in results])
+    context_text = "Pharmacy Inventory: " + ", ".join([i['item_name'] for i in results])
 
+    # Generate Assistant Response
     with st.chat_message("assistant"):
         placeholder = st.empty()
         full_response = ""
         
-        # Convert history to Gemini format (user/model roles)
+        # Prepare history for Gemini API
         history = [
             {"role": "user" if m["role"] == "user" else "model", "parts": [m["content"]]} 
             for m in st.session_state.messages[:-1]
@@ -99,7 +108,7 @@ if prompt:
         
         try:
             chat = model.start_chat(history=history)
-            response = chat.send_message(f"Context: {context}\n\nUser: {prompt}\nRespond in {language}.", stream=True)
+            response = chat.send_message(f"Context: {context_text}\n\nUser Question: {prompt}\nRespond in {language}.", stream=True)
             for chunk in response:
                 if chunk.text:
                     full_response += chunk.text
@@ -107,10 +116,12 @@ if prompt:
             placeholder.markdown(full_response)
         except Exception as e:
             st.error(f"AI Error: {str(e)}")
-            full_response = "Connection error. Please try again."
+            full_response = "I am sorry, I am having trouble connecting. Please try again."
 
+        # Show Product Grid if matches found
         if results:
             st.divider()
+            st.subheader("Recommended Products" if language == "English" else "المنتجات الموصى بها")
             cols = st.columns(3)
             for idx, item in enumerate(results):
                 with cols[idx % 3]:
@@ -118,4 +129,5 @@ if prompt:
                     st.write(f"**{item['item_name']}**")
                     st.link_button("🛒 Buy Now", item['productlink'], type="primary", use_container_width=True)
 
+    # Save Assistant Message to Session
     st.session_state.messages.append({"role": "assistant", "content": full_response})
