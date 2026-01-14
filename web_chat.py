@@ -8,8 +8,8 @@ st.set_page_config(page_title="Family Pharmacy AI", page_icon="💊", layout="ce
 
 # 2. SETUP GEMINI
 # We use st.secrets so your API key stays hidden on GitHub
-if "GEMINI_API_KEY" in st.secrets:
-    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+if "AIzaSyA88af8HzXTHe959_ek92Es6b8FDKS5aXU" in st.secrets:
+    genai.configure(api_key=st.secrets["AIzaSyA88af8HzXTHe959_ek92Es6b8FDKS5aXU"])
 else:
     st.error("Missing API Key! Please add it to Streamlit Secrets.")
 
