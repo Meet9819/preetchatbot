@@ -15,7 +15,7 @@ else:
     st.error("⚠️ API Key not found! Please add 'GEMINI_API_KEY' to your Streamlit Cloud Secrets.")
     st.stop()
 
-model = genai.GenerativeModel('gemini-1.5-flash')
+model = genai.GenerativeModel('models/gemini-1.5-flash')
 
 # 3. DATA ENGINE (Inventory Loader)
 API_URL = "https://robustremedy.com/superadmin/api/api/preetchatbotapi.php"
