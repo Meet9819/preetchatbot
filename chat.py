@@ -1,25 +1,31 @@
-import ollama
+import streamlit as st
+import google.generativeai as genai
 
-# This list will store the entire conversation
-messages = []
+# 1. SETUP: Gemini requires an API Key instead of a local server
+# In Streamlit Cloud, add this to "Advanced Settings > Secrets"
+genai.configure(api_key=st.secrets["AIzaSyA88af8HzXTHe959_ek92Es6b8FDKS5aXU"])
+model = genai.GenerativeModel('gemini-1.5-flash')
 
-print("--- AI Chatbot with Memory (Type 'exit' to stop) ---")
+st.title("Family Pharmacy AI (Gemini)")
 
-while True:
-    user_input = input("You: ")
+# 2. MEMORY: Use Streamlit's session_state to persist history across browser refreshes
+if "chat_session" not in st.session_state:
+    # Initializing Gemini's built-in chat manager
+    st.session_state.chat_session = model.start_chat(history=[])
+
+# 3. DISPLAY: Show past messages from the chat session history
+for message in st.session_state.chat_session.history:
+    role = "user" if message.role == "user" else "assistant"
+    with st.chat_message(role):
+        st.markdown(message.parts[0].text)
+
+# 4. INPUT: Handle new user queries
+if prompt := st.chat_input("How can I help you today?"):
+    with st.chat_message("user"):
+        st.markdown(prompt)
+
+    # 5. RESPONSE: Send message to the session (it remembers the previous turns)
+    response = st.session_state.chat_session.send_message(prompt)
     
-    if user_input.lower() == 'exit':
-        break
-
-    # 1. Add your message to the history
-    messages.append({'role': 'user', 'content': user_input})
-
-    # 2. Send the WHOLE history to the AI
-    response = ollama.chat(model='llama3.2:1b', messages=messages)
-
-    # 3. Get the AI's answer
-    ai_response = response['message']['content']
-    print(f"AI: {ai_response}")
-
-    # 4. Add the AI's answer to the history so it remembers what it said
-    messages.append({'role': 'assistant', 'content': ai_response})
+    with st.chat_message("assistant"):
+        st.markdown(response.text)
